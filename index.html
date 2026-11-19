@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Serial Debugger · 串口调试工具</title>
+<meta name="description" content="为硬件工程师打造的现代化串口调试工具：报文收发、JS 脚本引擎、曲线解析、多开实例、共享指令库。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0e13;
+  --bg2:#0d1219;
+  --panel:#10161f;
+  --panel2:#131b26;
+  --line:#1e2836;
+  --line2:#2a3648;
+  --ink:#dbe4ee;
+  --ink-dim:#8b98a9;
+  --ink-faint:#5b6878;
+  --phos:#3ddc84;
+  --phos-dim:rgba(61,220,132,.14);
+  --amber:#ffb454;
+  --cyan:#59c2ff;
+  --red:#ff6b5e;
+  --mono:'JetBrains Mono',monospace;
+  --disp:'Chakra Petch','Noto Sans SC',sans-serif;
+  --sans:'Noto Sans SC',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:16px;line-height:1.75;overflow-x:hidden;
+}
+::selection{background:var(--phos);color:#04160b}
+
+/* 背景氛围：网格 + 顶部磷光 */
+.bg-fx{position:fixed;inset:0;z-index:-2;background:
+  linear-gradient(180deg,rgba(61,220,132,.05),transparent 30%),
+  radial-gradient(1200px 600px at 75% -10%,rgba(89,194,255,.07),transparent 60%),
+  var(--bg)}
+.bg-grid{position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:
+    linear-gradient(var(--line) 1px,transparent 1px),
+    linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(1200px 800px at 50% 0%,rgba(0,0,0,.5),transparent 75%);
+  opacity:.5}
+.bg-noise{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.35;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.06 0 0 0 0 0.1 0 0 0 0 0.09 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* 顶栏 */
+nav{position:fixed;top:0;left:0;right:0;z-index:50;
+  display:flex;align-items:center;gap:24px;padding:0 clamp(20px,4vw,56px);height:64px;
+  background:rgba(10,14,19,.82);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:.5px;text-decoration:none;color:var(--ink)}
+.brand .led{width:9px;height:9px;border-radius:50%;background:var(--phos);box-shadow:0 0 8px var(--phos);animation:blink 2.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+nav .sp{flex:1}
+nav a.nav-link{color:var(--ink-dim);text-decoration:none;font-size:14px;transition:color .2s}
+nav a.nav-link:hover{color:var(--phos)}
+nav .gh{display:flex;align-items:center;gap:8px;padding:7px 16px;border:1px solid var(--line2);border-radius:8px;
+  color:var(--ink);text-decoration:none;font-family:var(--mono);font-size:13px;transition:.2s}
+nav .gh:hover{border-color:var(--phos);color:var(--phos)}
+
+/* Hero */
+.wrap{max-width:1160px;margin:0 auto;padding:0 clamp(20px,4vw,48px)}
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center;
+  padding:150px 0 90px}
+.kicker{display:inline-flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12.5px;
+  color:var(--phos);border:1px solid rgba(61,220,132,.35);background:var(--phos-dim);
+  padding:6px 14px;border-radius:100px;letter-spacing:1px}
+.kicker .dot{width:6px;height:6px;border-radius:50%;background:var(--phos);animation:blink 1.6s infinite}
+.hero h1{font-family:var(--disp);font-weight:700;
+  font-size:clamp(42px,5.4vw,72px);line-height:1.08;letter-spacing:1px;margin:26px 0 8px}
+.hero h1 .en{display:block;font-size:.52em;color:var(--phos);letter-spacing:4px;margin-top:10px;font-weight:600}
+.hero p.sub{color:var(--ink-dim);font-size:17px;max-width:46ch;margin:20px 0 34px}
+.cta-row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:14px 26px;border-radius:10px;
+  font-family:var(--disp);font-weight:600;font-size:15px;text-decoration:none;letter-spacing:.5px;
+  transition:transform .15s,box-shadow .2s,border-color .2s}
+.btn.primary{background:var(--phos);color:#04160b;box-shadow:0 0 0 1px rgba(61,220,132,.4),0 8px 28px rgba(61,220,132,.22)}
+.btn.primary:hover{transform:translateY(-2px);box-shadow:0 0 0 1px rgba(61,220,132,.5),0 14px 36px rgba(61,220,132,.3)}
+.btn.ghost{border:1px solid var(--line2);color:var(--ink)}
+.btn.ghost:hover{border-color:var(--phos);color:var(--phos);transform:translateY(-2px)}
+.meta-row{display:flex;gap:22px;margin-top:30px;font-family:var(--mono);font-size:12.5px;color:var(--ink-faint);flex-wrap:wrap}
+.meta-row b{color:var(--ink-dim);font-weight:500}
+
+/* 终端窗口 */
+.term{background:var(--panel);border:1px solid var(--line2);border-radius:14px;
+  box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 1px rgba(61,220,132,.06);
+  overflow:hidden;transform:rotate(.4deg)}
+.term-bar{display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--panel2);border-bottom:1px solid var(--line)}
+.term-bar i{width:11px;height:11px;border-radius:50%}
+.term-bar i:nth-child(1){background:#ff5f57}.term-bar i:nth-child(2){background:#febc2e}.term-bar i:nth-child(3){background:#28c840}
+.term-bar span{margin-left:10px;font-family:var(--mono);font-size:12px;color:var(--ink-faint)}
+.term-body{padding:20px 22px;font-family:var(--mono);font-size:13.5px;line-height:1.95;min-height:322px;white-space:pre-wrap}
+.t-dim{color:var(--ink-faint)}
+.t-rx{color:var(--cyan)}
+.t-tx{color:var(--phos)}
+.t-ok{color:var(--amber)}
+.t-cursor{display:inline-block;width:8px;height:17px;background:var(--phos);vertical-align:-3px;animation:blink 1s steps(1) infinite}
+
+/* 波形 */
+.wave{margin-top:18px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px 8px;transform:rotate(-.3deg)}
+.wave .w-label{font-family:var(--mono);font-size:11px;color:var(--ink-faint);display:flex;justify-content:space-between;margin-bottom:4px}
+.wave svg{display:block;width:100%}
+.wave path{stroke-dasharray:1200;stroke-dashoffset:1200;animation:dash 4.5s linear infinite}
+@keyframes dash{to{stroke-dashoffset:0}}
+
+/* 通用 section */
+section{padding:96px 0}
+.sec-head{margin-bottom:52px}
+.sec-tag{font-family:var(--mono);font-size:12px;color:var(--phos);letter-spacing:3px}
+.sec-head h2{font-family:var(--disp);font-size:clamp(28px,3.4vw,40px);font-weight:700;letter-spacing:1px;margin-top:12px}
+.sec-head p{color:var(--ink-dim);margin-top:12px;max-width:60ch}
+.rule{height:1px;background:linear-gradient(90deg,var(--phos),var(--line2) 40%,transparent);margin-top:22px}
+
+/* 特性网格 */
+.feat-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:18px}
+.feat{grid-column:span 4;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px 26px;
+  position:relative;overflow:hidden;transition:transform .2s,border-color .25s,box-shadow .25s}
+.feat:hover{transform:translateY(-4px);border-color:rgba(61,220,132,.4);box-shadow:0 18px 44px rgba(0,0,0,.45)}
+.feat::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--phos),transparent 70%);opacity:0;transition:opacity .25s}
+.feat:hover::before{opacity:1}
+.feat.wide{grid-column:span 8}
+.feat .fn{font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:2px}
+.feat h3{font-family:var(--disp);font-size:19px;font-weight:600;margin:12px 0 10px;letter-spacing:.5px}
+.feat h3 em{font-style:normal;color:var(--phos)}
+.feat p{color:var(--ink-dim);font-size:14.5px;line-height:1.8}
+.feat .hex{position:absolute;right:18px;top:20px;font-family:var(--mono);font-size:11px;color:var(--line2);letter-spacing:1px}
+.feat:nth-child(odd) .hex{color:#233043}
+
+/* 脚本代码块 */
+.code-panel{background:#0b1118;border:1px solid var(--line2);border-radius:14px;overflow:hidden;
+  box-shadow:0 24px 70px rgba(0,0,0,.5)}
+.code-head{display:flex;align-items:center;gap:10px;padding:11px 18px;background:var(--panel2);border-bottom:1px solid var(--line);
+  font-family:var(--mono);font-size:12px;color:var(--ink-faint)}
+.code-head .f{color:var(--amber)}
+.code-body{padding:22px 24px;font-family:var(--mono);font-size:13.5px;line-height:2;overflow-x:auto;white-space:pre}
+.c-kw{color:#ff8f7a}.c-fn{color:var(--cyan)}.c-str{color:#9ad48a}.c-num{color:var(--amber)}.c-cm{color:var(--ink-faint);font-style:italic}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+.duo .col{display:flex;flex-direction:column;gap:14px}
+
+/* 下载 */
+.dl-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.dl{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px 24px;text-align:center;
+  color:inherit;text-decoration:none;
+  transition:transform .2s,border-color .25s}
+.dl:hover{transform:translateY(-4px);border-color:var(--phos)}
+.dl .os{height:34px;display:flex;align-items:center;justify-content:center}
+.os-svg{width:27px;height:27px;color:var(--ink-dim);transition:color .25s}
+.dl:hover .os-svg{color:var(--phos)}
+.dl .arch{font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:1px;margin-top:8px}
+.dl .name{font-family:var(--disp);font-weight:600;font-size:15.5px;margin:10px 0 4px}
+.dl .size{font-family:var(--mono);font-size:12px;color:var(--ink-faint)}
+.ver-note{margin-top:22px;font-family:var(--mono);font-size:12.5px;color:var(--ink-faint);text-align:center}
+.ver-note b{color:var(--phos)}
+
+/* 打赏 & 联系 */
+.support{display:grid;grid-template-columns:1.2fr .8fr;gap:40px;align-items:center;
+  background:linear-gradient(120deg,var(--panel),#121a14);border:1px solid rgba(61,220,132,.22);border-radius:18px;padding:52px 56px;position:relative;overflow:hidden}
+.support::after{content:"❤";position:absolute;right:-30px;bottom:-60px;font-size:260px;color:rgba(61,220,132,.06);transform:rotate(-12deg)}
+.support h3{font-family:var(--disp);font-size:26px;margin-bottom:14px;letter-spacing:.5px}
+.support p{color:var(--ink-dim);font-size:15px;max-width:48ch}
+.contact{display:flex;flex-direction:column;gap:14px;position:relative;z-index:1}
+.contact a{display:flex;align-items:center;gap:12px;padding:14px 20px;border:1px solid var(--line2);border-radius:12px;
+  color:var(--ink);text-decoration:none;font-family:var(--mono);font-size:14px;transition:.2s;background:rgba(10,14,19,.5)}
+.contact a:hover{border-color:var(--phos);transform:translateX(4px)}
+.contact .ic{width:20px;text-align:center}
+.contact .lbl{color:var(--ink-faint);font-size:11px;letter-spacing:1px}
+
+/* footer */
+footer{border-top:1px solid var(--line);padding:44px 0 60px;text-align:center}
+footer .slogan{font-family:var(--disp);font-size:17px;color:var(--ink-dim);letter-spacing:1px}
+footer .slogan b{color:var(--amber)}
+footer .fine{margin-top:14px;font-family:var(--mono);font-size:12px;color:var(--ink-faint)}
+
+/* 入场动画 */
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+.hero .kicker{animation:fadeup .7s .1s both}
+.hero h1{animation:fadeup .7s .2s both}
+.hero .sub{animation:fadeup .7s .32s both}
+.hero .cta-row{animation:fadeup .7s .44s both}
+.hero .meta-row{animation:fadeup .7s .55s both}
+.hero .term-wrap{animation:fadeup .8s .5s both}
+@keyframes fadeup{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+
+@media(max-width:960px){
+  .hero{grid-template-columns:1fr;padding-top:120px}
+  .feat,.feat.wide{grid-column:span 12}
+  .duo{grid-template-columns:1fr}
+  .dl-grid{grid-template-columns:repeat(2,1fr)}
+  .support{grid-template-columns:1fr;padding:40px 28px}
+}
+@media(max-width:560px){
+  .dl-grid{grid-template-columns:1fr}
+  nav a.nav-link{display:none}
+}
+</style>
+</head>
+<body>
+<div class="bg-fx"></div><div class="bg-grid"></div><div class="bg-noise"></div>
+
+<nav>
+  <a class="brand" href="#"><span class="led"></span>SERIAL DEBUGGER</a>
+  <span class="sp"></span>
+  <a class="nav-link" href="#features">功能</a>
+  <a class="nav-link" href="#script">脚本引擎</a>
+  <a class="nav-link" href="#download">下载</a>
+</nav>
+
+<header class="hero wrap">
+  <div>
+    <span class="kicker"><span class="dot"></span>v0.1.6 · macOS &amp; Windows</span>
+    <h1>串口调试工具<span class="en">SERIAL DEBUGGER</span></h1>
+    <p class="sub">为硬件工程师打造的现代化串口调试台。报文收发、JS 脚本引擎、曲线解析、多开实例、共享指令库 —— 从一根串口线到完整的协议调试工作流。</p>
+    <div class="cta-row">
+      <a class="btn primary" href="#download">↓ 免费下载</a>
+      <a class="btn ghost" href="#features">查看功能</a>
+    </div>
+    <div class="meta-row">
+      <span><b>30 天</b> 全功能试用</span>
+      <span><b>离线</b> 激活授权</span>
+      <span><b>115200</b> 默认波特率</span>
+      <span><b>~71MB</b> 便携版体积</span>
+    </div>
+  </div>
+  <div class="term-wrap">
+    <div class="term">
+      <div class="term-bar"><i></i><i></i><i></i><span>/dev/cu.usbserial-1410 · 115200 8N1</span></div>
+      <div class="term-body" id="term"></div>
+    </div>
+    <div class="wave">
+      <div class="w-label"><span>TX WAVEFORM · CH1</span><span id="baud">115200 baud</span></div>
+      <svg viewBox="0 0 560 72" preserveAspectRatio="none" height="72">
+        <path d="M0,54 L28,54 L28,22 L62,22 L62,54 L92,54 L92,22 L112,22 L112,54 L150,54 L150,22 L196,22 L196,54 L216,54 L216,22 L238,22 L238,54 L290,54 L290,22 L318,22 L318,54 L360,54 L360,22 L398,22 L398,54 L430,54 L430,22 L452,22 L452,54 L500,54 L500,22 L560,22"
+              fill="none" stroke="#3ddc84" stroke-width="2"/>
+      </svg>
+    </div>
+  </div>
+</header>
+
+<section id="features" class="wrap">
+  <div class="sec-head reveal">
+    <div class="sec-tag">// FEATURES</div>
+    <h2>一根串口线，完整的调试工作流</h2>
+    <div class="rule"></div>
+  </div>
+  <div class="feat-grid">
+    <div class="feat reveal"><span class="hex">0x55 0xAA</span>
+      <h3>报文<em>收发</em></h3>
+      <p>ASCII / HEX 双模式，结束符可选、支持定时发送；RX / TX 独立统计，方向一目了然。</p>
+    </div>
+    <div class="feat reveal"><span class="hex">REGEX</span>
+      <h3>过滤与<em>查找</em></h3>
+      <p>多规则高亮过滤、正则查找快速导航，海量报文里精确锁定关心的帧。</p>
+    </div>
+    <div class="feat reveal"><span class="hex">on_rx()</span>
+      <h3>JS <em>脚本引擎</em></h3>
+      <p>on_rx / on_line 钩子实时解析协议，自动应答、数值提取、指令编排，全部交给脚本。</p>
+    </div>
+    <div class="feat wide reveal"><span class="hex">CHART</span>
+      <h3>脚本解析<em>曲线</em></h3>
+      <p>脚本返回的数值直接绘制成实时曲线图，传感器波形、电压电流趋势，原生图表视图呈现。</p>
+    </div>
+    <div class="feat reveal"><span class="hex">x N</span>
+      <h3>多开<em>实例</em></h3>
+      <p>同时调试多台设备：独立配置、Dock 徽标编号、日志按实例分文件，互不干扰。</p>
+    </div>
+    <div class="feat reveal"><span class="hex">SYNC</span>
+      <h3>共享<em>指令库</em></h3>
+      <p>指令库全实例实时同步，AT 指令一键下发，团队常用命令不再各自维护。</p>
+    </div>
+    <div class="feat reveal"><span class="hex">TTY</span>
+      <h3>终端<em>模式</em></h3>
+      <p>真实终端体验：本地历史命令上下召回、Ctrl+L 清屏、Alt+方向键透传，交互设备完美适配。</p>
+    </div>
+  </div>
+</section>
+
+<section id="script" class="wrap">
+  <div class="sec-head reveal">
+    <div class="sec-tag">// SCRIPT ENGINE</div>
+    <h2>协议解析，交给一个函数</h2>
+    <p>每个报文自动流经你的脚本 —— 解析、应答、抛出曲线数据点，三行代码搞定一个协议。</p>
+    <div class="rule"></div>
+  </div>
+  <div class="duo">
+    <div class="col reveal">
+      <div class="code-panel">
+        <div class="code-head"><span class="f">sensor.js</span><span>· JS 脚本引擎</span></div>
+        <div class="code-body"><span class="c-cm">// 收到数据帧：解析温湿度并自动应答</span>
+<span class="c-kw">function</span> <span class="c-fn">on_rx</span>(data) {
+  <span class="c-kw">const</span> t = data.<span class="c-fn">parseHex</span>(<span class="c-num">2</span>, <span class="c-num">2</span>) / <span class="c-num">10</span>;
+  <span class="c-kw">const</span> h = data.<span class="c-fn">parseHex</span>(<span class="c-num">4</span>, <span class="c-num">2</span>) / <span class="c-num">10</span>;
+  <span class="c-kw">return</span> { <span class="c-str">'温度℃'</span>: t, <span class="c-str">'湿度%'</span>: h };
+}
+
+<span class="c-cm">// 每行文本：指令编排</span>
+<span class="c-kw">function</span> <span class="c-fn">on_line</span>(line) {
+  <span class="c-kw">if</span> (line === <span class="c-str">'AT+RESET'</span>)
+    <span class="c-kw">return</span> [<span class="c-str">'AT'</span>, <span class="c-str">'AT+INIT'</span>];
+}</div>
+      </div>
+    </div>
+    <div class="col reveal">
+      <div class="code-panel">
+        <div class="code-head"><span class="f">曲线视图</span><span>· 脚本返回值实时绘制</span></div>
+        <div class="code-body" style="padding:18px 20px 8px">
+          <svg viewBox="0 0 420 190" width="100%">
+            <line x1="0" y1="40" x2="420" y2="40" stroke="#1e2836" stroke-width="1"/>
+            <line x1="0" y1="90" x2="420" y2="90" stroke="#1e2836" stroke-width="1"/>
+            <line x1="0" y1="140" x2="420" y2="140" stroke="#1e2836" stroke-width="1"/>
+            <path d="M0,120 C40,60 70,150 110,95 C150,40 190,140 230,80 C270,35 300,120 340,70 C380,30 405,90 420,60"
+                  fill="none" stroke="#3ddc84" stroke-width="2.5"/>
+            <path d="M0,150 C50,120 90,165 140,135 C190,105 240,155 290,125 C340,100 390,140 420,118"
+                  fill="none" stroke="#ffb454" stroke-width="2" stroke-dasharray="6 5"/>
+            <text x="8" y="34" fill="#8b98a9" font-size="11" font-family="JetBrains Mono">温度℃ 26.4</text>
+            <text x="8" y="84" fill="#8b98a9" font-size="11" font-family="JetBrains Mono">湿度% 58.0</text>
+          </svg>
+        </div>
+      </div>
+      <div class="code-panel">
+        <div class="code-head"><span class="f">指令库</span><span>· 全实例同步</span></div>
+        <div class="code-body" style="font-size:12.5px">
+<span style="color:var(--phos)">▸ AT+PWRTEST=6,0</span>   电源测试
+<span style="color:var(--phos)">▸ AT+BACKLIGHT</span>     背光调节
+<span style="color:var(--phos)">▸ AT+RAMINFO</span>       内存信息</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="download" class="wrap">
+  <div class="sec-head reveal">
+    <div class="sec-tag">// DOWNLOAD</div>
+    <h2>选择你的平台</h2>
+    <div class="rule"></div>
+  </div>
+  <div class="dl-grid">
+    <a class="dl reveal" href="https://github.com/youngManFire/serial-debugger/raw/gh-pages/dist/SerialDebugger-0.1.6-arm64-mac.zip">
+      <svg class="os-svg" viewBox="0 0 384 512" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg><div class="name">macOS</div><div class="arch">APPLE SILICON · M 系列</div><div class="size">87 MB · .zip</div>
+    </a>
+    <a class="dl reveal" href="https://github.com/youngManFire/serial-debugger/raw/gh-pages/dist/SerialDebugger-0.1.6-mac.zip">
+      <svg class="os-svg" viewBox="0 0 384 512" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg><div class="name">macOS</div><div class="arch">INTEL · X64</div><div class="size">91 MB · .zip</div>
+    </a>
+    <a class="dl reveal" href="https://github.com/youngManFire/serial-debugger/raw/gh-pages/dist/SerialDebugger-Setup-0.1.6.exe">
+      <svg class="os-svg" viewBox="0 0 448 512" fill="currentColor"><path d="M0 93.7l183.6-25.3v177.4H0V93.7zm0 324.6l183.6 25.3V268.4H0v149.9zm203.8 28L448 480V268.4H203.8v177.9zm0-380.6v180.1H448V32L203.8 65.7z"/></svg><div class="name">Windows</div><div class="arch">X64 · 安装版</div><div class="size">79 MB · Setup.exe</div>
+    </a>
+    <a class="dl reveal" href="https://github.com/youngManFire/serial-debugger/raw/gh-pages/dist/SerialDebugger-Portable-0.1.6.exe">
+      <svg class="os-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg><div class="name">Windows</div><div class="arch">X64 · 便携版</div><div class="size">71 MB · Portable.exe</div>
+    </a>
+  </div>
+  <div class="ver-note reveal">v0.1.6 · 首次启动全功能试用 <b>30 天</b> · 离线激活，绑定机器，无需联网验证</div>
+</section>
+
+<footer>
+  <div class="slogan">梦和路就在远方，<b>奥利给</b> 🙏</div>
+  <div class="fine">SERIAL DEBUGGER · v0.1.6 · built with ⚡ Electron + Vue</div>
+</footer>
+
+<script>
+/* 终端打字动画 */
+const term = document.getElementById('term');
+const lines = [
+  {t:'[10:02:14.221] ', x:'串口已连接 /dev/cu.usbserial-1410 @ 115200\n', c:'t-dim'},
+  {t:'TX ▸ ', x:'AT+HWVER\n', c:'t-tx'},
+  {t:'RX ◂ ', x:'HWVER: SB-C4 2.1.0\n', c:'t-rx'},
+  {t:'RX ◂ ', x:'OK\n', c:'t-ok'},
+  {t:'TX ▸ ', x:'AT+RAMINFO\n', c:'t-tx'},
+  {t:'RX ◂ ', x:'RAM: 412KB / 512KB free\n', c:'t-rx'},
+  {t:'RX ◂ ', x:'OK\n', c:'t-ok'},
+  {t:'TX ▸ ', x:'AT+SENSOR?', c:'t-tx', cursor:true},
+];
+let li = 0, ci = 0;
+const buf = [];
+function render(){
+  term.innerHTML = buf.map(seg =>
+    seg.cursor ? `<span class="${seg.c}">${seg.x}</span><span class="t-cursor"></span>`
+               : `<span class="${seg.c}">${seg.x}</span>`
+  ).join('');
+}
+function tick(){
+  if (li >= lines.length){ setTimeout(()=>{buf.length=0;li=0;ci=0;tick();}, 2600); return; }
+  const L = lines[li];
+  if (!buf[li]) buf[li] = {x:'', c:L.c, cursor:L.cursor};
+  if (ci < L.x.length){
+    buf[li].x += L.x[ci++];
+    render();
+    setTimeout(tick, 12 + Math.random()*26);
+  } else { li++; ci = 0; setTimeout(tick, 140); }
+}
+tick();
+
+/* 滚动入场 */
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+}), {threshold:.12});
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+</body>
+</html>
