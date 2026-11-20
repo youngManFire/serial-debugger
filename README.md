@@ -50,14 +50,14 @@
 
 ## 📥 下载
 
-前往 [Releases](https://github.com/youngManFire/serial-debugger/releases) 页面下载最新版本：
+前往 [dist 目录](https://github.com/youngManFire/serial-debugger/tree/gh-pages/dist) 下载最新版本，或点击下方文件直接下载：
 
 | 平台 | 文件 | 说明 |
 |------|------|------|
-| macOS Apple Silicon | `SerialDebugger-x.y.z-arm64-mac.zip` | M 系列芯片，解压即用 |
-| macOS Intel | `SerialDebugger-x.y.z-mac.zip` | Intel 芯片，解压即用 |
-| Windows | `SerialDebugger Setup x.y.z.exe` | 安装版（NSIS 向导） |
-| Windows | `SerialDebugger x.y.z.exe` | 便携版，免安装 |
+| macOS Apple Silicon | [SerialDebugger-0.1.6-arm64-mac.zip](https://github.com/youngManFire/serial-debugger/raw/gh-pages/dist/SerialDebugger-0.1.6-arm64-mac.zip) | M 系列芯片，解压即用 |
+| macOS Intel | [SerialDebugger-0.1.6-mac.zip](https://github.com/youngManFire/serial-debugger/raw/gh-pages/dist/SerialDebugger-0.1.6-mac.zip) | Intel 芯片，解压即用 |
+| Windows | [SerialDebugger-Setup-0.1.6.exe](https://github.com/youngManFire/serial-debugger/raw/gh-pages/dist/SerialDebugger-Setup-0.1.6.exe) | 安装版（NSIS 向导） |
+| Windows | [SerialDebugger-Portable-0.1.6.exe](https://github.com/youngManFire/serial-debugger/raw/gh-pages/dist/SerialDebugger-Portable-0.1.6.exe) | 便携版，免安装 |
 
 > Windows 首次运行如遇 SmartScreen 提示，点击「更多信息 → 仍要运行」即可（应用暂未做代码签名）。
 
@@ -69,23 +69,6 @@
    - 常用指令存入**指令库**，一键下发
    - 写一段 `on_rx` 脚本解析私有协议，返回数值自动生成**曲线**
    - 需要同时调试多台设备？点左下角「多开」
-
-## 🛠️ 技术栈
-
-- **Electron 33** + **Vue 3.5**（`<script setup>`）+ **TDesign Vue Next** + **Vite 6**
-- **serialport v12**（Node IPC 桥接，渲染层零原生依赖）
-- CodeMirror 6（脚本编辑器）
-- 离线授权：Ed25519 签名验证（`@noble/curves` 同源方案，Node crypto 原生实现）
-
-```bash
-# 开发调试
-npm install
-npm run start:mock     # 模拟串口模式（/dev/mock0，自动回显 + 应答）
-npm run start          # 真实串口模式
-
-# 打包（macOS + Windows）
-npm run dist
-```
 
 ## 📁 数据目录
 
